@@ -1,0 +1,15 @@
+# Python
+__pycache__/
+*.pyc
+
+# Virtual environment
+venv/
+
+# Storage (encrypted data & keys)
+storage/encrypted_audio/*
+storage/metadata/*
+storage/server_private.key
+
+# OS
+.DS_Store
+Thumbs.db
