@@ -3,3 +3,11 @@ uvicorn
 cryptography
 pydantic
 python-multipart
+
+# Speech-to-text
+openai-whisper
+torch
+
+# NLP
+transformers
+scikit-learn
