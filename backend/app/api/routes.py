@@ -1,6 +1,12 @@
 from fastapi import APIRouter, UploadFile, File, Form
 from pathlib import Path
 import json
+from fastapi.responses import FileResponse
+import tempfile
+import soundfile as sf
+import os
+
+from app.services.enhancement_service import enhance_audio
 
 from app.crypto.key_exchange import derive_shared_secret, generate_keypair
 from app.crypto.aes import derive_aes_key, encrypt_audio
@@ -45,10 +51,10 @@ async def send_voice(
     # 🔒 AES key
     aes_key = derive_aes_key(shared_secret)
 
-    # Encrypt audio
+    # 🔐 Encrypt audio
     nonce, ciphertext = encrypt_audio(aes_key, audio_bytes)
 
-    # Store encrypted message + AES key
+    # 📦 Store encrypted message
     metadata = save_message(
         sender=sender,
         nonce=nonce,
@@ -69,12 +75,11 @@ async def send_voice(
 def get_messages():
     return list_messages()
 
-
 # -----------------------------
-# Decrypt → Transcribe → Classify
+# DEMO: Get Enhanced Audio
 # -----------------------------
-@router.get("/transcribe/{message_id}")
-def transcribe_message(message_id: str):
+@router.get("/enhance/{message_id}")
+def get_enhanced_audio(message_id: str):
     encrypted_path = STORAGE_AUDIO / f"{message_id}.bin"
     meta_path = STORAGE_META / f"{message_id}.json"
 
@@ -87,16 +92,51 @@ def transcribe_message(message_id: str):
         meta_path
     )
 
-    # 🧠 Speech-to-text
-    transcription = speech_to_text(audio_bytes)
+    # 🎧 Enhance audio (Objective 2)
+    enhanced_audio = enhance_audio(audio_bytes)
 
-    # 🧠 NLP classification
+    # Save enhanced audio to temp file
+    with tempfile.NamedTemporaryFile(delete=False, suffix=".wav") as tmp:
+        tmp.write(enhanced_audio)
+        temp_path = tmp.name
+
+    # Return audio file
+    return FileResponse(
+        path=temp_path,
+        media_type="audio/wav",
+        filename=f"{message_id}_enhanced.wav"
+    )
+
+# -----------------------------
+# Decrypt → Enhance → Transcribe → Classify
+# -----------------------------
+@router.get("/transcribe/{message_id}")
+def transcribe_message(message_id: str):
+    encrypted_path = STORAGE_AUDIO / f"{message_id}.bin"
+    meta_path = STORAGE_META / f"{message_id}.json"
+
+    if not encrypted_path.exists() or not meta_path.exists():
+        return {"error": "Message not found"}
+
+    # 🔓 Step 1: Decrypt audio (controlled)
+    audio_bytes = load_and_decrypt_audio(
+        encrypted_path,
+        meta_path
+    )
+
+    # 🎧 Step 2: Speech enhancement (Objective 2)
+    enhanced_audio = enhance_audio(audio_bytes)
+
+    # 🧠 Step 3: Speech-to-text
+    transcription = speech_to_text(enhanced_audio)
+
+    # 🧠 Step 4: NLP classification
     status = classify_message(transcription)
 
     # 🔄 Update metadata
     meta = json.loads(meta_path.read_text())
     meta["status"] = status
-    meta_path.write_text(json.dumps(meta))
+    meta_path.write_text(json.dumps(meta, indent=2))
 
     return {
         "message_id": message_id,

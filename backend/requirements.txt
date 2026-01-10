@@ -11,3 +11,8 @@ torch
 # NLP
 transformers
 scikit-learn
+
+
+librosa
+soundfile
+numpy

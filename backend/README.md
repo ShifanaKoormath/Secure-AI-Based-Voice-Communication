@@ -37,6 +37,7 @@ Then run:
 pip install -r requirements.txt
 
 
+
 This will install:
 
 FastAPI
@@ -48,6 +49,19 @@ Cryptography
 Whisper & Torch
 
 Transformers & scikit-learn
+
+
+(updated requirements installation:
+
+pip install torch torchaudio soundfile numpy scipy
+
+
+
+
+)
+
+
+
 
 ✅ STEP 5 — Run the Server
 
